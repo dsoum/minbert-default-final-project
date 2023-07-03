@@ -126,7 +126,7 @@ class BertLayer(nn.Module):
     after_add_norm = self.add_norm(hidden_states, after_multi_head, self.attention_dense,
                                self.attention_dropout,self.attention_layer_norm)
     after_feed_forward = self.interm_af(self.interm_dense(after_add_norm))
-    after_add_norm = self.add_norm(self.after_add_norm, self.after_feed_forward, self.out_dense,
+    after_add_norm = self.add_norm(after_add_norm, after_feed_forward, self.out_dense,
                                    self.out_dropout, self.out_layer_norm)
     return after_add_norm
 
