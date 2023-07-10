@@ -196,11 +196,11 @@ def train_multitask(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
-    # Run for the specified number of epochs
-    for epoch in range(args.epochs):
-        model.train()
-        train_loss = 0
-        num_batches = 0
+    # # Run for the specified number of epochs
+    # for epoch in range(args.epochs):
+    #     model.train()
+    #     train_loss = 0
+    #     num_batches = 0
 
         # # sst training
         # for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
