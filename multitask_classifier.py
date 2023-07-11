@@ -238,7 +238,7 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-
+        print("just before")
         # # sentiment classification training (ideal learning rate with 1e-3)
         for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
             b_ids, b_mask, b_labels = (batch['token_ids'],
