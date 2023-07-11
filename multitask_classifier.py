@@ -68,7 +68,7 @@ class MultitaskBERT(nn.Module):
 
         # semantic textual similarity
         self.sts_linear1 = nn.Linear(BERT_HIDDEN_SIZE, BERT_HIDDEN_SIZE)
-        self.sts_linear1 = nn.Linear(BERT_HIDDEN_SIZE, BERT_HIDDEN_SIZE)
+        self.sts_linear2 = nn.Linear(BERT_HIDDEN_SIZE, BERT_HIDDEN_SIZE)
         self.sts_dropout1 = nn.Dropout(config.hidden_dropout_prob)
         self.sts_dropout2 = nn.Dropout(config.hidden_dropout_prob)
 
@@ -237,7 +237,7 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
-        # # sentiment classification training (ideal learning rate with 1e-3)
+        # sentiment classification training (ideal learning rate with 1e-3)
         for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
@@ -281,10 +281,10 @@ def train_multitask(args):
                 logits = torch.sigmoid(logits) # normalize
 
                 # L1 loss
-                # loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
+                loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
 
                 # Cross Entropy Loss Try
-                loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+                #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
                 loss.backward()
                 optimizer.step()
