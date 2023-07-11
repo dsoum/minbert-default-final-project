@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from bert1 import BertModel
+from bert import BertModel
 from optimizer import AdamW
 from tqdm import tqdm
 
@@ -194,7 +194,7 @@ def train_multitask(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-    print("Hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+    
     # Run for the specified number of epochs
     # for epoch in range(args.epochs):
     #     model.train()
@@ -234,11 +234,9 @@ def train_multitask(args):
     ######################################################
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
-        print("inside loop")
         model.train()
         train_loss = 0
         num_batches = 0
-        print("just before")
         # # sentiment classification training (ideal learning rate with 1e-3)
         for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
             b_ids, b_mask, b_labels = (batch['token_ids'],
