@@ -194,7 +194,7 @@ def train_multitask(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-
+    print("Hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
     # Run for the specified number of epochs
     # for epoch in range(args.epochs):
     #     model.train()
@@ -234,6 +234,7 @@ def train_multitask(args):
     ######################################################
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
+        print("inside loop")
         model.train()
         train_loss = 0
         num_batches = 0
