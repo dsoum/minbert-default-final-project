@@ -36,33 +36,32 @@ class BertSelfAttention(nn.Module):
 
   def attention(self, key, query, value, attention_mask):
     # each attention is calculated following eq (1) of https://arxiv.org/pdf/1706.03762.pdf
-    # attention scores are calculated by multiply query and key
+    # attention scores are calculated by multiply query and key 
     # and get back a score matrix S of [bs, num_attention_heads, seq_len, seq_len]
     # S[*, i, j, k] represents the (unnormalized)attention score between the j-th and k-th token, given by i-th attention head
     # before normalizing the scores, use the attention mask to mask out the padding token scores
-    # Note again: in the attention_mask non-padding tokens with 0 and padding tokens with a large negative number
+    # Note again: in the attention_mask non-padding tokens with 0 and padding tokens with a large negative number 
+
+    d_k = query.size(-1)
+    S = torch.matmul(query, key.transpose(-2,-1))/math.sqrt(d_k)  # S: [bs, num_attention_heads, seq_len, seq_len]
+    S += attention_mask
 
     # normalize the scores
-    # multiply the attention scores to the value and get back V'
+    scores = F.softmax(S,dim=-1)
+
+    # multiply the attention scores to the value and get back V' 
+    v_1 = torch.matmul(scores, value)    # v_1: [bs, num_attention_heads, seq_len, attention_head_size]
+    
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
+    v_1 = v_1.transpose(1,2)
+    bs, seq_len = v_1.shape[:2]
+    #v_1 = v_1.reshape(bs, seq_len,self.num_attention_heads*self.attention_head_size)
+    v_1 = v_1.reshape(bs, seq_len,-1)
 
     ### TODO
-    [bs, _, seq_len, _] = key.size()
-    key = key.transpose(-1, -2)
-    S = torch.matmul(query, key)
+    #raise NotImplementedError
+    return v_1
 
-    S /= math.sqrt(self.attention_head_size)
-
-    if attention_mask is not None:
-      S += attention_mask
-
-    S = F.softmax(S, dim=-1)
-    S = self.dropout(S)
-    V = torch.matmul(S, value)
-    V = V.transpose(1, 2).contiguous()
-
-    output = V.view(bs, seq_len,  self.num_attention_heads * self.attention_head_size)
-    return output
 
   def forward(self, hidden_states, attention_mask):
     """
@@ -108,8 +107,9 @@ class BertLayer(nn.Module):
     """
     # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized 
     ### TODO
-    output = dropout(dense_layer(output))
-    return ln_layer(input.add(output))
+    #raise NotImplementedError
+    return ln_layer(input + dropout(dense_layer(output)))
+
 
   def forward(self, hidden_states, attention_mask):
     """
@@ -122,16 +122,16 @@ class BertLayer(nn.Module):
     4. a add-norm that takes the input and output of the feed forward layer
     """
     ### TODO
-    # multi-head attention
-    o1 = self.self_attention.forward(hidden_states, attention_mask)
+    #raise NotImplementedError
+    after_multi_head = self.self_attention(hidden_states, attention_mask)
+    after_add_norm = self.add_norm(hidden_states, after_multi_head, self.attention_dense,
+                               self.attention_dropout,self.attention_layer_norm)
+    after_feed_forward = self.interm_af(self.interm_dense(after_add_norm))
+    after_add_norm = self.add_norm(after_add_norm, after_feed_forward, self.out_dense,
+                                   self.out_dropout, self.out_layer_norm)
+    return after_add_norm
 
-    # add-norm layer
-    o2 = self.add_norm(hidden_states, o1, self.attention_dense, self.attention_dropout, self.attention_layer_norm)
 
-    # feed forward
-    o3 = self.interm_af(self.interm_dense(o2))
-
-    return self.add_norm(o2, o3, self.out_dense, self.out_dropout, self.out_layer_norm)
 class BertModel(BertPreTrainedModel):
   """
   the bert model returns the final embeddings for each token in a sentence
@@ -145,7 +145,6 @@ class BertModel(BertPreTrainedModel):
     self.config = config
 
     # embedding
-    # print ('config: ', config.vocab_size, config.hidden_size) # 30522 768
     self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
     self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
     self.tk_type_embedding = nn.Embedding(config.type_vocab_size, config.hidden_size)
@@ -167,31 +166,35 @@ class BertModel(BertPreTrainedModel):
   def embed(self, input_ids):
     input_shape = input_ids.size()
     seq_length = input_shape[1]
+
     # Get word embedding from self.word_embedding into input_embeds.
-    inputs_embeds = None
-    ### TODO
+    #inputs_embeds = None
     inputs_embeds = self.word_embedding(input_ids)
+    ### TODO
+    #raise NotImplementedError
+
 
     # Get position index and position embedding from self.pos_embedding into pos_embeds.
-    pos_ids = self.position_ids[:, :seq_length] # 大概意思是从idx 0 ... 到 seq_length
+    pos_ids = self.position_ids[:, :seq_length]
 
-    pos_embeds = None
-    ### TODO
+    #pos_embeds = None
     pos_embeds = self.pos_embedding(pos_ids)
+    ### TODO
+    #raise NotImplementedError
 
 
     # Get token type ids, since we are not consider token type, just a placeholder.
-    tk_type_embeds = self.tk_type_embedding(torch.zeros(input_shape, dtype=torch.long))
+    tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
+    tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
     # Add three embeddings together; then apply embed_layer_norm and dropout and return.
     ### TODO
-    embeds = inputs_embeds + tk_type_embeds + pos_embeds
+    #raise NotImplementedError
+    embeddings = inputs_embeds + pos_embeds + tk_type_embeds
+    embeddings = self.embed_dropout(self.embed_layer_norm(embeddings))
+    return embeddings
 
-    # Layer norm and dropout
-    embeds = self.embed_layer_norm(embeds)
-    embeds = self.embed_dropout(embeds)
 
-    return embeds
   def encode(self, hidden_states, attention_mask):
     """
     hidden_states: the output from the embedding layer [batch_size, seq_len, hidden_size]
