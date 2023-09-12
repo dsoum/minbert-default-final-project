@@ -310,10 +310,11 @@ def train(args):
 
         train_loss = train_loss / (num_batches)
         
-        if args.epochs<=5 or epoch==args.epochs-1 or epoch == eval_epoch:
-            eval_epoch += increase_eval_epoch
-            train_acc, train_f1, *_  = model_eval(train_dataloader, model, device)
-            
+        # if args.epochs<=5 or epoch==args.epochs-1 or epoch == eval_epoch:
+        #     eval_epoch += increase_eval_epoch
+        #     train_acc, train_f1, *_  = model_eval(train_dataloader, model, device)
+        
+        train_acc, train_f1, *_  = model_eval(train_dataloader, model, device)
         dev_acc, dev_f1, *_ = model_eval(dev_dataloader, model, device)
 
         if dev_acc > best_dev_acc:
@@ -408,24 +409,25 @@ if __name__ == "__main__":
     print('Evaluating on SST...')
     test(config)
 
-#     print('Training Sentiment Classifier on cfimdb...')
-#     config2 = SimpleNamespace(
-#         filepath='cfimdb-classifier.pt',
-#         lr=args.lr,
-#         use_gpu=args.use_gpu,
-#         device = device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'),
-#         epochs=args.epochs,
-#         batch_size=8,
-#         hidden_dropout_prob=args.hidden_dropout_prob,
-#         train='data/ids-cfimdb-train.csv',
-#         dev='data/ids-cfimdb-dev.csv',
-#         test='data/ids-cfimdb-test-student.csv',
-#         option=args.option,
-#         dev_out = 'predictions/'+args.option+'-cfimdb-dev-out.csv',
-#         test_out = 'predictions/'+args.option+'-cfimdb-test-out.csv'
-#     )
+    print('Training Sentiment Classifier on cfimdb...')
+    config = SimpleNamespace(
+        filepath='cfimdb-classifier.pt',
+        lr=args.lr,
+        use_gpu=args.use_gpu,
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'),
+        load_model = args.load_model,
+        epochs=args.epochs,
+        batch_size=8,
+        hidden_dropout_prob=args.hidden_dropout_prob,
+        train='data/ids-cfimdb-train.csv',
+        dev='data/ids-cfimdb-dev.csv',
+        test='data/ids-cfimdb-test-student.csv',
+        option=args.option,
+        dev_out = 'predictions/'+args.option+'-cfimdb-dev-out.csv',
+        test_out = 'predictions/'+args.option+'-cfimdb-test-out.csv'
+    )
 
-#     #train(config)
+    train(config)
 
-#     print('Evaluating on cfimdb...')
-#     #test(config)
+    print('Evaluating on cfimdb...')
+    test(config)
