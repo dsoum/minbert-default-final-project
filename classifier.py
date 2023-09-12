@@ -61,7 +61,7 @@ class BertSentimentClassifier(torch.nn.Module):
         bert_output = self.bert(input_ids, attention_mask)
         after_drop = self.dropout(bert_output['pooler_output'])
         logits = self.classifier(after_drop)
-        return F.softmax(logits,dim = -1)
+        return logits
 
 
 
