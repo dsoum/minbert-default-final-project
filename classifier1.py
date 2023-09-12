@@ -273,8 +273,11 @@ def train(args):
     if args.load_model:
         assert os.path.exists(args.filepath), "there is no such model to load"
         saved = torch.load(args.filepath)
-        config = saved['model_config']
-        model = BertSentimentClassifier(config)
+        # checking if the config of the loaded model same as the model
+        loaded_model_config = saved['model_config']
+        loaded_model_config.option= args.option
+        assert loaded_model_config == config, "model config does not match"
+
         model.load_state_dict(saved['model'])
         model = model.to(device)
         print(f"load model from {args.filepath}")
