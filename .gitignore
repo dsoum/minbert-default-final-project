@@ -1,2 +1,4 @@
+*.pt
+.ipynb_checkpoints/
 default-final-project-bert-handout.pdf
 __pycache__/

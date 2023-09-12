@@ -236,7 +236,11 @@ def save_model(model, optimizer, args, config, filepath):
 
 
 def train(args):
-    device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    #device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    
+    device = args.device
+    print("Using device: ", device)
+    
     # Load data
     # Create the data and its corresponding datasets and dataloader
     train_data, num_labels = load_data(args.train, 'train')
@@ -265,6 +269,21 @@ def train(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
+    #---------------------------
+    if args.load_model:
+        assert os.path.exists(args.filepath), "there is no such model to load"
+        saved = torch.load(args.filepath)
+        config = saved['model_config']
+        model = BertSentimentClassifier(config)
+        model.load_state_dict(saved['model'])
+        model = model.to(device)
+        print(f"load model from {args.filepath}")
+        #optimizer.load_state_dict(saved['optim'])
+    
+    eval_epoch = 0
+    increase_eval_epoch = max(args.epochs//5, 3)
+    
+    #--------------------------
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -290,20 +309,26 @@ def train(args):
             num_batches += 1
 
         train_loss = train_loss / (num_batches)
-
-        train_acc, train_f1, *_  = model_eval(train_dataloader, model, device)
+        
+        if args.epochs<=5 or epoch==args.epochs-1 or epoch == eval_epoch:
+            eval_epoch += increase_eval_epoch
+            train_acc, train_f1, *_  = model_eval(train_dataloader, model, device)
+            
         dev_acc, dev_f1, *_ = model_eval(dev_dataloader, model, device)
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
             save_model(model, optimizer, args, config, args.filepath)
 
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+        #print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+        print(f"Epoch {epoch}: train loss :: {train_loss}, train acc :: {train_acc}, dev acc :: {dev_acc}")
 
 
 def test(args):
     with torch.no_grad():
-        device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        #device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        device = args.device
+        print("Using device: ", device)
         saved = torch.load(args.filepath)
         config = saved['model_config']
         model = BertSentimentClassifier(config)
@@ -341,6 +366,7 @@ def get_args():
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
     parser.add_argument("--use_gpu", action='store_true')
+    parser.add_argument("--load_model", action='store_true')
     parser.add_argument("--dev_out", type=str, default="cfimdb-dev-output.txt")
     parser.add_argument("--test_out", type=str, default="cfimdb-test-output.txt")
                                     
@@ -357,12 +383,15 @@ if __name__ == "__main__":
     args = get_args()
     seed_everything(args.seed)
     #args.filepath = f'{args.option}-{args.epochs}-{args.lr}.pt'
+    
 
     print('Training Sentiment Classifier on SST...')
-    config1 = SimpleNamespace(
-        filepath='sst-classifier.pt',
+    config = SimpleNamespace(
+        filepath='models/sst-classifier.pt',
         lr=args.lr,
         use_gpu=args.use_gpu,
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'),
+        load_model = args.load_model,
         epochs=args.epochs,
         batch_size=args.batch_size,
         hidden_dropout_prob=args.hidden_dropout_prob,
@@ -374,28 +403,29 @@ if __name__ == "__main__":
         test_out = 'predictions/'+args.option+'-sst-test-out.csv'
     )
 
-    #train(config)
+    train(config)
 
     print('Evaluating on SST...')
-    #test(config)
+    test(config)
 
-    print('Training Sentiment Classifier on cfimdb...')
-    config2 = SimpleNamespace(
-        filepath='cfimdb-classifier.pt',
-        lr=args.lr,
-        use_gpu=args.use_gpu,
-        epochs=args.epochs,
-        batch_size=8,
-        hidden_dropout_prob=args.hidden_dropout_prob,
-        train='data/ids-cfimdb-train.csv',
-        dev='data/ids-cfimdb-dev.csv',
-        test='data/ids-cfimdb-test-student.csv',
-        option=args.option,
-        dev_out = 'predictions/'+args.option+'-cfimdb-dev-out.csv',
-        test_out = 'predictions/'+args.option+'-cfimdb-test-out.csv'
-    )
+#     print('Training Sentiment Classifier on cfimdb...')
+#     config2 = SimpleNamespace(
+#         filepath='cfimdb-classifier.pt',
+#         lr=args.lr,
+#         use_gpu=args.use_gpu,
+#         device = device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'),
+#         epochs=args.epochs,
+#         batch_size=8,
+#         hidden_dropout_prob=args.hidden_dropout_prob,
+#         train='data/ids-cfimdb-train.csv',
+#         dev='data/ids-cfimdb-dev.csv',
+#         test='data/ids-cfimdb-test-student.csv',
+#         option=args.option,
+#         dev_out = 'predictions/'+args.option+'-cfimdb-dev-out.csv',
+#         test_out = 'predictions/'+args.option+'-cfimdb-test-out.csv'
+#     )
 
-    #train(config)
+#     #train(config)
 
-    print('Evaluating on cfimdb...')
-    #test(config)
+#     print('Evaluating on cfimdb...')
+#     #test(config)
