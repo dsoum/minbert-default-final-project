@@ -42,25 +42,23 @@ class BertSelfAttention(nn.Module):
     # before normalizing the scores, use the attention mask to mask out the padding token scores
     # Note again: in the attention_mask non-padding tokens with 0 and padding tokens with a large negative number 
 
-    d_k = query.size(-1)
-    S = torch.matmul(query, key.transpose(-2,-1))/math.sqrt(d_k)  # S: [bs, num_attention_heads, seq_len, seq_len]
-    S += attention_mask
-
     # normalize the scores
-    scores = F.softmax(S,dim=-1)
-
-    # multiply the attention scores to the value and get back V' 
-    v_1 = torch.matmul(scores, value)    # v_1: [bs, num_attention_heads, seq_len, attention_head_size]
-    
+    # multiply the attention scores to the value and get back V'
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
-    v_1 = v_1.transpose(1,2)
-    bs, seq_len = v_1.shape[:2]
-    #v_1 = v_1.reshape(bs, seq_len,self.num_attention_heads*self.attention_head_size)
-    v_1 = v_1.reshape(bs, seq_len,-1)
 
-    ### TODO
-    #raise NotImplementedError
-    return v_1
+    # ### TODO
+    # raise NotImplementedError
+
+    d_k = query.size(-1)
+    attn_score = torch.matmul(query, key.transpose(-2,-1))/math.sqrt(d_k)  # attention_score: [bs, num_attention_heads, seq_len, seq_len]
+    attn_score += attention_mask
+    attn_score = F.softmax(attn_score,dim=-1)
+
+    attention = torch.matmul(attn_score, value)    # attention: [bs, num_attention_heads, seq_len, attention_head_size]
+    attention = attention.transpose(1,2)
+    bs, seq_len = attention.shape[:2]
+    attention = attention.reshape(bs, seq_len,-1)   # attention: [bs, seq_len, num_attention_heads*attention_head_size]
+    return attention
 
 
   def forward(self, hidden_states, attention_mask):

@@ -10,7 +10,7 @@ from sklearn.metrics import classification_report, f1_score, recall_score, accur
 # change it with respect to the original model
 from tokenizer import BertTokenizer
 from bert1 import BertModel
-from optimizer import AdamW
+from optimizer1 import AdamW
 from tqdm import tqdm
 
 
