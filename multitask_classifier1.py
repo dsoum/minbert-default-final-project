@@ -169,8 +169,8 @@ def train_multitask(args):
                                     collate_fn=para_dev_data.collate_fn)
 
     # sts dataset
-    sts_train_data = SentencePairDataset(para_train_data, args)
-    sts_dev_data = SentencePairDataset(sts_dev_data, args)
+    sts_train_data = SentencePairDataset(para_train_data, args, isRegression =True)
+    sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
     sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
                                       collate_fn=sts_train_data.collate_fn)
