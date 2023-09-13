@@ -144,7 +144,9 @@ def save_model(model, optimizer, args, config, filepath):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
-    device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    #device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    print("Using device: ", device)
     # Load data
     # Create the data and its corresponding datasets and dataloader
     sst_train_data, num_labels,para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
@@ -194,6 +196,25 @@ def train_multitask(args):
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
+
+    #---------------------------
+    if args.load_model:
+        assert os.path.exists(args.model_path), "there is no such model to load"
+        saved = torch.load(args.model_path)
+        # checking if the config of the loaded model same as the model
+        loaded_model_config = saved['model_config']
+        loaded_model_config.option= args.option
+        assert loaded_model_config == config, "model config does not match"
+
+        model.load_state_dict(saved['model'])
+        model = model.to(device)
+        print(f"load model from {args.filepath}")
+        #optimizer.load_state_dict(saved['optim'])
+    
+    eval_epoch = 0
+    increase_eval_epoch = max(args.epochs//5, 3)
+    
+    #--------------------------
     
     # Run for the specified number of epochs
     # for epoch in range(args.epochs):
@@ -350,7 +371,9 @@ def train_multitask(args):
 
 def test_model(args):
     with torch.no_grad():
-        device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        #device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        print("Using device: ", device)
         saved = torch.load(args.filepath)
         config = saved['model_config']
 
@@ -382,6 +405,8 @@ def get_args():
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
     parser.add_argument("--use_gpu", action='store_true')
+    parser.add_argument("--load_model", action='store_true')
+    parser.add_argument("--model_path", type=str, default=None)
 
     parser.add_argument("--sst_dev_out", type=str, default="predictions/sst-dev-output.csv")
     parser.add_argument("--sst_test_out", type=str, default="predictions/sst-test-output.csv")
@@ -403,7 +428,9 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
+    args.filepath = f'models/{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
+    if args.model_path is None:
+        args.model_path = args.filepath
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
