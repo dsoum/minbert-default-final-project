@@ -146,40 +146,12 @@ def model_eval_paraphrase(paraphrase_dataloader, model, device):
     model.eval()  # switch to eval model, will turn off randomness like dropout
 
     with torch.no_grad():
-        para_y_true = []
-        para_y_pred = []
-        para_sent_ids = []
+        # para_y_true = []
+        # para_y_pred = []
+        # para_sent_ids = []
 
-        # Evaluate paraphrase detection.
-        for step, batch in enumerate(tqdm(paraphrase_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-            (b_ids1, b_mask1,
-             b_ids2, b_mask2,
-             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
-                          batch['token_ids_2'], batch['attention_mask_2'],
-                          batch['labels'], batch['sent_ids'])
-
-            b_ids1 = b_ids1.to(device)
-            b_mask1 = b_mask1.to(device)
-            b_ids2 = b_ids2.to(device)
-            b_mask2 = b_mask2.to(device)
-
-            logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
-            y_hat = logits.sigmoid().round().flatten().cpu().numpy()
-            b_labels = b_labels.flatten().cpu().numpy()
-
-            para_y_pred.extend(y_hat)
-            para_y_true.extend(b_labels)
-            para_sent_ids.extend(b_sent_ids)
-
-        paraphrase_accuracy = np.mean(np.array(para_y_pred) == np.array(para_y_true))
-
-        # sts_y_true = []
-        # sts_y_pred = []
-        # sts_sent_ids = []
-
-
-        # # Evaluate semantic textual similarity.
-        # for step, batch in enumerate(tqdm(sts_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
+        # # Evaluate paraphrase detection.
+        # for step, batch in enumerate(tqdm(paraphrase_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
         #     (b_ids1, b_mask1,
         #      b_ids2, b_mask2,
         #      b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
@@ -191,15 +163,43 @@ def model_eval_paraphrase(paraphrase_dataloader, model, device):
         #     b_ids2 = b_ids2.to(device)
         #     b_mask2 = b_mask2.to(device)
 
-        #     logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
-        #     y_hat = logits.flatten().cpu().numpy()
+        #     logits = model.predict_paraphrase(b_ids1, b_mask1, b_ids2, b_mask2)
+        #     y_hat = logits.sigmoid().round().flatten().cpu().numpy()
         #     b_labels = b_labels.flatten().cpu().numpy()
 
-        #     sts_y_pred.extend(y_hat)
-        #     sts_y_true.extend(b_labels)
-        #     sts_sent_ids.extend(b_sent_ids)
-        # pearson_mat = np.corrcoef(sts_y_pred,sts_y_true)
-        # sts_corr = pearson_mat[1][0]
+        #     para_y_pred.extend(y_hat)
+        #     para_y_true.extend(b_labels)
+        #     para_sent_ids.extend(b_sent_ids)
+
+        # paraphrase_accuracy = np.mean(np.array(para_y_pred) == np.array(para_y_true))
+
+        sts_y_true = []
+        sts_y_pred = []
+        sts_sent_ids = []
+
+
+        # Evaluate semantic textual similarity.
+        for step, batch in enumerate(tqdm(sts_dataloader, desc=f'eval', disable=TQDM_DISABLE)):
+            (b_ids1, b_mask1,
+             b_ids2, b_mask2,
+             b_labels, b_sent_ids) = (batch['token_ids_1'], batch['attention_mask_1'],
+                          batch['token_ids_2'], batch['attention_mask_2'],
+                          batch['labels'], batch['sent_ids'])
+
+            b_ids1 = b_ids1.to(device)
+            b_mask1 = b_mask1.to(device)
+            b_ids2 = b_ids2.to(device)
+            b_mask2 = b_mask2.to(device)
+
+            logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
+            y_hat = logits.flatten().cpu().numpy()
+            b_labels = b_labels.flatten().cpu().numpy()
+
+            sts_y_pred.extend(y_hat)
+            sts_y_true.extend(b_labels)
+            sts_sent_ids.extend(b_sent_ids)
+        pearson_mat = np.corrcoef(sts_y_pred,sts_y_true)
+        sts_corr = pearson_mat[1][0]
 
 
         # sst_y_true = []
@@ -223,11 +223,11 @@ def model_eval_paraphrase(paraphrase_dataloader, model, device):
 
         # sentiment_accuracy = np.mean(np.array(sst_y_pred) == np.array(sst_y_true))
 
-        print(f'Paraphrase detection accuracy: {paraphrase_accuracy}')
+        # print(f'Paraphrase detection accuracy: {paraphrase_accuracy}')
         # print(f'Sentiment classification accuracy: {sentiment_accuracy:.3f}')
-        # print(f'Semantic Textual Similarity correlation: {sts_corr:.3f}')
+        print(f'Semantic Textual Similarity correlation: {sts_corr}')
 
-        return (paraphrase_accuracy, para_y_pred, para_sent_ids)
+        return (sts_corr, sts_y_pred, sts_sent_ids)
 
 # Perform model evaluation in terms by averaging accuracies across tasks.
 def model_eval_test_paraphrase(paraphrase_dataloader, model, device):
@@ -322,23 +322,23 @@ def train_multitask(args):
     # sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
     #                                 collate_fn=sst_dev_data.collate_fn)
 
-    # paraphrase dataset
-    para_train_data = SentencePairDataset(para_train_data, args)
-    para_dev_data = SentencePairDataset(para_dev_data, args)
+    # # paraphrase dataset
+    # para_train_data = SentencePairDataset(para_train_data, args)
+    # para_dev_data = SentencePairDataset(para_dev_data, args)
 
-    para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
-                                      collate_fn=para_train_data.collate_fn)
-    para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
-                                    collate_fn=para_dev_data.collate_fn)
+    # para_train_dataloader = DataLoader(para_train_data, shuffle=True, batch_size=args.batch_size,
+    #                                   collate_fn=para_train_data.collate_fn)
+    # para_dev_dataloader = DataLoader(para_dev_data, shuffle=False, batch_size=args.batch_size,
+    #                                 collate_fn=para_dev_data.collate_fn)
 
-    # # sts dataset
-    # sts_train_data = SentencePairDataset(para_train_data, args, isRegression =True)
-    # sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
+    # sts dataset
+    sts_train_data = SentencePairDataset(para_train_data, args, isRegression =True)
+    sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
-    # sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
-    #                                   collate_fn=sts_train_data.collate_fn)
-    # sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
-    #                                 collate_fn=sts_dev_data.collate_fn)
+    sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
+                                      collate_fn=sts_train_data.collate_fn)
+    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
+                                    collate_fn=sts_dev_data.collate_fn)
 
 
 
@@ -403,84 +403,84 @@ def train_multitask(args):
         # print('Epoch: ', epoch, 'Sentiment Classification Loss: ', train_loss)
         # #wandb.log({"Sentiment Classification Epoch": epoch, "train loss": train_loss})
 
-        # paraphrase training -- classification problem
-        train_loss = 0
-        num_batches = 0
-
-        # Paraphrase not need to train over 10 epochs
-        if epoch <= 10:
-            for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-                b_id_1, b_mask_1, b_id_2, b_mask_2, b_labels = (batch['token_ids_1'],
-                                           batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'], batch['labels'])
-
-                b_id_1 = b_id_1.to(device)
-                b_mask_1 = b_mask_1.to(device)
-                b_id_2 = b_id_2.to(device)
-                b_mask_2 = b_mask_2.to(device)
-                b_labels = b_labels.to(device)
-
-                optimizer.zero_grad()
-                logits = model.predict_paraphrase(b_id_1, b_mask_1, b_id_2, b_mask_2)
-                logits = torch.sigmoid(logits) # normalize
-
-                # L1 loss
-                loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
-
-                # Cross Entropy Loss Try
-                #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
-
-                loss.backward()
-                optimizer.step()
-
-                train_loss += loss.item()
-                num_batches += 1
-
-            train_loss = train_loss / (num_batches)
-            print('Epoch: ', epoch, 'Paraphrase Loss: ', train_loss)
-            #wandb.log({"Paraphrase Epoch": epoch, "train loss": train_loss})
-
-        # # SemEval training -- regression problem
+        # # paraphrase training -- classification problem
         # train_loss = 0
         # num_batches = 0
-        # for batch in tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-        #     b_id_1, b_mask_1, b_id_2, b_mask_2, b_labels = (batch['token_ids_1'],
-        #                                batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'], batch['labels'])
 
-        #     b_id_1 = b_id_1.to(device)
-        #     b_mask_1 = b_mask_1.to(device)
-        #     b_id_2 = b_id_2.to(device)
-        #     b_mask_2 = b_mask_2.to(device)
-        #     b_labels = b_labels.to(device)
+        # # Paraphrase not need to train over 10 epochs
+        # if epoch <= 10:
+        #     for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        #         b_id_1, b_mask_1, b_id_2, b_mask_2, b_labels = (batch['token_ids_1'],
+        #                                    batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'], batch['labels'])
 
-        #     optimizer.zero_grad()
-        #     logits = model.predict_similarity(b_id_1, b_mask_1, b_id_2, b_mask_2)
-        #     logits = torch.mul(logits.add(1), 2.5)
-        #     # b_labels_norm = torch.Tensor([1 if x > 2.5 else -1 for x in b_labels])
+        #         b_id_1 = b_id_1.to(device)
+        #         b_mask_1 = b_mask_1.to(device)
+        #         b_id_2 = b_id_2.to(device)
+        #         b_mask_2 = b_mask_2.to(device)
+        #         b_labels = b_labels.to(device)
 
-        #     # hinge loss
-        #     # loss = F.hinge_embedding_loss(logits, b_labels_norm) / args.batch_size
+        #         optimizer.zero_grad()
+        #         logits = model.predict_paraphrase(b_id_1, b_mask_1, b_id_2, b_mask_2)
+        #         logits = torch.sigmoid(logits) # normalize
 
-        #     # L1 loss
-        #     # loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size # L1 loss
+        #         # L1 loss
+        #         loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
 
-        #     # MSE loss
-        #     loss = F.mse_loss(logits, b_labels.to(logits.dtype)) / args.batch_size
+        #         # Cross Entropy Loss Try
+        #         #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
-        #     loss.backward()
-        #     optimizer.step()
+        #         loss.backward()
+        #         optimizer.step()
 
-        #     train_loss += loss.item()
-        #     num_batches += 1
+        #         train_loss += loss.item()
+        #         num_batches += 1
 
-        # train_loss = train_loss / (num_batches)
-        # print('Epoch: ', epoch, 'SemEval Loss: ', train_loss)
-        # #wandb.log({"SemEval Epoch": epoch, "train loss": train_loss})
+        #     train_loss = train_loss / (num_batches)
+        #     print('Epoch: ', epoch, 'Paraphrase Loss: ', train_loss)
+        #     #wandb.log({"Paraphrase Epoch": epoch, "train loss": train_loss})
 
-        train_acc_para, _, _= model_eval_paraphrase(para_train_dataloader, model, device)
-        dev_acc_para, _, _= model_eval_multitask(para_dev_dataloader, model, device)
+        # SemEval training -- regression problem
+        train_loss = 0
+        num_batches = 0
+        for batch in tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+            b_id_1, b_mask_1, b_id_2, b_mask_2, b_labels = (batch['token_ids_1'],
+                                       batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'], batch['labels'])
 
-        train_acc = train_acc_para
-        dev_acc = dev_acc_para
+            b_id_1 = b_id_1.to(device)
+            b_mask_1 = b_mask_1.to(device)
+            b_id_2 = b_id_2.to(device)
+            b_mask_2 = b_mask_2.to(device)
+            b_labels = b_labels.to(device)
+
+            optimizer.zero_grad()
+            logits = model.predict_similarity(b_id_1, b_mask_1, b_id_2, b_mask_2)
+            logits = torch.mul(logits.add(1), 2.5)
+            # b_labels_norm = torch.Tensor([1 if x > 2.5 else -1 for x in b_labels])
+
+            # hinge loss
+            # loss = F.hinge_embedding_loss(logits, b_labels_norm) / args.batch_size
+
+            # L1 loss
+            # loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size # L1 loss
+
+            # MSE loss
+            loss = F.mse_loss(logits, b_labels.to(logits.dtype)) / args.batch_size
+
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item()
+            num_batches += 1
+
+        train_loss = train_loss / (num_batches)
+        print('Epoch: ', epoch, 'SemEval Loss: ', train_loss)
+        #wandb.log({"SemEval Epoch": epoch, "train loss": train_loss})
+
+        train_acc_sts, _, _= model_eval_sts(sts_train_dataloader, model, device)
+        dev_acc_sts, _, _= model_eval_sts(sts_dev_dataloader, model, device)
+
+        train_acc = train_acc_sts
+        dev_acc = dev_acc_sts
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
