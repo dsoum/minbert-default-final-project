@@ -208,7 +208,7 @@ def train_multitask(args):
 
         model.load_state_dict(saved['model'])
         model = model.to(device)
-        print(f"load model from {args.filepath}")
+        print(f"load model from {args.model_path}")
         #optimizer.load_state_dict(saved['optim'])
     
     eval_epoch = 0
