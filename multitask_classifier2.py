@@ -7,7 +7,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from bert import BertModel
-from optimizer import AdamW
+#from optimizer import AdamW
+from torch.optim.adamw import AdamW
 from tqdm import tqdm
 
 from datasets import SentenceClassificationDataset, SentencePairDataset, \
@@ -144,7 +145,9 @@ def save_model(model, optimizer, args, config, filepath):
 
 ## Currently only trains on sst dataset
 def train_multitask(args):
-    device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    #device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    print("Using device: ", device)
     # Load data
     # Create the data and its corresponding datasets and dataloader
     sst_train_data, num_labels,para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
@@ -169,8 +172,8 @@ def train_multitask(args):
                                     collate_fn=para_dev_data.collate_fn)
 
     # sts dataset
-    sts_train_data = SentencePairDataset(para_train_data, args)
-    sts_dev_data = SentencePairDataset(sts_dev_data, args)
+    sts_train_data = SentencePairDataset(para_train_data, args, isRegression =True)
+    sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
     sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
                                       collate_fn=sts_train_data.collate_fn)
@@ -196,9 +199,9 @@ def train_multitask(args):
     best_dev_acc = 0
 
     #---------------------------
-    if args.load_model_from is not None:
-        assert os.path.exists(args.load_model_from), "there is no such model to load"
-        saved = torch.load(args.load_model_from)
+    if args.load_model:
+        assert os.path.exists(args.model_path), "there is no such model to load"
+        saved = torch.load(args.model_path)
         # checking if the config of the loaded model same as the model
         loaded_model_config = saved['model_config']
         loaded_model_config.option= args.option
@@ -206,14 +209,14 @@ def train_multitask(args):
 
         model.load_state_dict(saved['model'])
         model = model.to(device)
-        print(f"load model from {args.load_model_from}")
+        print(f"load model from {args.model_path}")
         #optimizer.load_state_dict(saved['optim'])
     
     eval_epoch = 0
     increase_eval_epoch = max(args.epochs//5, 3)
     
-
-    ######################################################
+    #--------------------------
+    
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
         model.train()
@@ -240,7 +243,6 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
         print('Epoch: ', epoch, 'Sentiment Classification Loss: ', train_loss)
-        #wandb.log({"Sentiment Classification Epoch": epoch, "train loss": train_loss})
 
         # paraphrase training -- classification problem
         train_loss = 0
@@ -258,13 +260,16 @@ def train_multitask(args):
 
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_id_1, b_mask_1, b_id_2, b_mask_2)
+            #BCEwithlogits
+            #loss = F.binary_cross_entropy_with_logits(logits, b_labels)
             logits = torch.sigmoid(logits) # normalize
 
             # L1 loss
-            loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
+            # loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
+            
 
             # Cross Entropy Loss Try
-            #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
             loss.backward()
             optimizer.step()
@@ -274,7 +279,7 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
         print('Epoch: ', epoch, 'Paraphrase Loss: ', train_loss)
-        #wandb.log({"Paraphrase Epoch": epoch, "train loss": train_loss})
+
 
         # SemEval training -- regression problem
         train_loss = 0
@@ -311,7 +316,6 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
         print('Epoch: ', epoch, 'SemEval Loss: ', train_loss)
-        #wandb.log({"SemEval Epoch": epoch, "train loss": train_loss})
 
         train_acc_para, _, _, train_acc_sent, _, _, train_acc_sts, _, _ = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
         dev_acc_para, _, _, dev_acc_sent, _, _, dev_acc_sts, _, _ = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
@@ -324,13 +328,14 @@ def train_multitask(args):
             save_model(model, optimizer, args, config, args.filepath)
 
         # ---------- logging ------------------------ #
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
-        #wandb.log({"Epoch": epoch, "train loss": train_loss, "train acc": train_acc, "dev acc": dev_acc})
+        print(f"Epoch {epoch}: train loss :: {train_loss}, train acc :: {train_acc}, dev acc :: {dev_acc}")
 
 
 def test_model(args):
     with torch.no_grad():
-        device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        #device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        print("Using device: ", device)
         saved = torch.load(args.filepath)
         config = saved['model_config']
 
@@ -357,12 +362,13 @@ def get_args():
     parser.add_argument("--sts_test", type=str, default="data/sts-test-student.csv")
 
     parser.add_argument("--seed", type=int, default=11711)
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--option", type=str,
                         help='pretrain: the BERT parameters are frozen; finetune: BERT parameters are updated',
                         choices=('pretrain', 'finetune'), default="pretrain")
     parser.add_argument("--use_gpu", action='store_true')
-    parser.add_argument("--load_model_from", type=str, default=None)
+    parser.add_argument("--load_model", action='store_true')
+    parser.add_argument("--model_path", type=str, default=None)
 
     parser.add_argument("--sst_dev_out", type=str, default="predictions/sst-dev-output.csv")
     parser.add_argument("--sst_test_out", type=str, default="predictions/sst-test-output.csv")
@@ -384,7 +390,9 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
+    args.filepath = f'models/{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
+    if args.model_path is None:
+        args.model_path = args.filepath
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
