@@ -477,7 +477,7 @@ def train_multitask(args):
         # #wandb.log({"SemEval Epoch": epoch, "train loss": train_loss})
 
         train_acc_para, _, _= model_eval_paraphrase(para_train_dataloader, model, device)
-        dev_acc_para, _, _= model_eval_multitask(para_dev_dataloader, model, device)
+        dev_acc_para, _, _= model_eval_paraphrase(para_dev_dataloader, model, device)
 
         train_acc = train_acc_para
         dev_acc = dev_acc_para

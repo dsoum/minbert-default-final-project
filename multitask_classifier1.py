@@ -217,43 +217,6 @@ def train_multitask(args):
     #--------------------------
     
     # Run for the specified number of epochs
-    # for epoch in range(args.epochs):
-    #     model.train()
-    #     train_loss = 0
-    #     num_batches = 0
-
-    #     # sst training
-    #     for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-    #         b_ids, b_mask, b_labels = (batch['token_ids'],
-    #                                    batch['attention_mask'], batch['labels'])
-
-    #         b_ids = b_ids.to(device)
-    #         b_mask = b_mask.to(device)
-    #         b_labels = b_labels.to(device)
-
-    #         optimizer.zero_grad()
-    #         logits = model.predict_sentiment(b_ids, b_mask)
-    #         loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
-
-    #         loss.backward()
-    #         optimizer.step()
-
-    #         train_loss += loss.item()
-    #         num_batches += 1
-
-    #     train_loss = train_loss / (num_batches)
-
-    #     train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
-    #     dev_acc, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
-
-    #     if dev_acc > best_dev_acc:
-    #         best_dev_acc = dev_acc
-    #         save_model(model, optimizer, args, config, args.filepath)
-
-    #     print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
-
-    ######################################################
-    # Run for the specified number of epochs
     for epoch in range(args.epochs):
         model.train()
         train_loss = 0
@@ -279,43 +242,43 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
         print('Epoch: ', epoch, 'Sentiment Classification Loss: ', train_loss)
-        #wandb.log({"Sentiment Classification Epoch": epoch, "train loss": train_loss})
 
         # paraphrase training -- classification problem
         train_loss = 0
         num_batches = 0
 
-        # Paraphrase not need to train over 10 epochs
-        if epoch <= 10:
-            for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-                b_id_1, b_mask_1, b_id_2, b_mask_2, b_labels = (batch['token_ids_1'],
-                                           batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'], batch['labels'])
+        for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+            b_id_1, b_mask_1, b_id_2, b_mask_2, b_labels = (batch['token_ids_1'],
+                                        batch['attention_mask_1'], batch['token_ids_2'], batch['attention_mask_2'], batch['labels'])
 
-                b_id_1 = b_id_1.to(device)
-                b_mask_1 = b_mask_1.to(device)
-                b_id_2 = b_id_2.to(device)
-                b_mask_2 = b_mask_2.to(device)
-                b_labels = b_labels.to(device)
+            b_id_1 = b_id_1.to(device)
+            b_mask_1 = b_mask_1.to(device)
+            b_id_2 = b_id_2.to(device)
+            b_mask_2 = b_mask_2.to(device)
+            b_labels = b_labels.to(device)
 
-                optimizer.zero_grad()
-                logits = model.predict_paraphrase(b_id_1, b_mask_1, b_id_2, b_mask_2)
-                logits = torch.sigmoid(logits) # normalize
+            optimizer.zero_grad()
+            logits = model.predict_paraphrase(b_id_1, b_mask_1, b_id_2, b_mask_2)
+            #BCEwithlogits
+            loss = F.binary_cross_entropy_with_logits(logits, b_labels)
+            #logits = torch.sigmoid(logits) # normalize
 
-                # L1 loss
-                loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
+            # L1 loss
+            # loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
+            
 
-                # Cross Entropy Loss Try
-                #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            # Cross Entropy Loss Try
+            #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
-                loss.backward()
-                optimizer.step()
+            loss.backward()
+            optimizer.step()
 
-                train_loss += loss.item()
-                num_batches += 1
+            train_loss += loss.item()
+            num_batches += 1
 
-            train_loss = train_loss / (num_batches)
-            print('Epoch: ', epoch, 'Paraphrase Loss: ', train_loss)
-            #wandb.log({"Paraphrase Epoch": epoch, "train loss": train_loss})
+        train_loss = train_loss / (num_batches)
+        print('Epoch: ', epoch, 'Paraphrase Loss: ', train_loss)
+
 
         # SemEval training -- regression problem
         train_loss = 0
@@ -352,7 +315,6 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
         print('Epoch: ', epoch, 'SemEval Loss: ', train_loss)
-        #wandb.log({"SemEval Epoch": epoch, "train loss": train_loss})
 
         train_acc_para, _, _, train_acc_sent, _, _, train_acc_sts, _, _ = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
         dev_acc_para, _, _, dev_acc_sent, _, _, dev_acc_sts, _, _ = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
@@ -365,8 +327,7 @@ def train_multitask(args):
             save_model(model, optimizer, args, config, args.filepath)
 
         # ---------- logging ------------------------ #
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
-        #wandb.log({"Epoch": epoch, "train loss": train_loss, "train acc": train_acc, "dev acc": dev_acc})
+        print(f"Epoch {epoch}: train loss :: {train_loss}, train acc :: {train_acc}, dev acc :: {dev_acc}")
 
 
 def test_model(args):
