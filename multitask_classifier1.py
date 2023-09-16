@@ -7,7 +7,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from bert import BertModel
-from optimizer import AdamW
+#from optimizer import AdamW
+from torch.optim.adamw import AdamW
 from tqdm import tqdm
 
 from datasets import SentenceClassificationDataset, SentencePairDataset, \
@@ -260,15 +261,15 @@ def train_multitask(args):
             optimizer.zero_grad()
             logits = model.predict_paraphrase(b_id_1, b_mask_1, b_id_2, b_mask_2)
             #BCEwithlogits
-            loss = F.binary_cross_entropy_with_logits(logits, b_labels)
-            #logits = torch.sigmoid(logits) # normalize
+            #loss = F.binary_cross_entropy_with_logits(logits, b_labels)
+            logits = torch.sigmoid(logits) # normalize
 
             # L1 loss
             # loss = F.l1_loss(logits.view(-1), b_labels) / args.batch_size
             
 
             # Cross Entropy Loss Try
-            #loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+            loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
             loss.backward()
             optimizer.step()
